@@ -11,7 +11,7 @@ python3 -B verify.py
 python3 -B demo.py
 ```
 
-`verify.py` 发现并运行 `tests/` 的全部回归。`demo.py` 读取 `samples/two_images.json`，在独立临时库内登记清册、保存修订、冻结、签发和重开领取。样例的首位预测属于空图，第二位预测命中唯一真值。手算 AP 为 1/2，报告给出空图的误报原行，两图均无漏检。检查失败时命令返回非零退出码。
+`verify.py` 发现并运行 `tests/` 的全部回归。`demo.py` 读取 `samples/two_images.json`，在独立临时库内登记清册、保存修订、冻结、签发和重开领取。样例的首位预测属于空图，第二位预测命中唯一真值。手算 AP 为 1/2，报告给出空图的误报原行，两图均无漏检。演示还以三框最低分同分组展示重排后均值不变，以及追加更正并重开后按报告号领回签发值。检查失败时命令返回非零退出码。
 
 ## 公开 API
 
@@ -47,6 +47,10 @@ with closing(open_ledger('inspection.sqlite3')) as db:
 - `issue_report(db, task_id)` 返回报告号。`read_report(db, report_id)` 返回 `ReportSnapshot`，包含 `report_id`、`task_id`、`ap` 和 `diagnostics`。`diagnostics.image_misses` 包含清册每图的漏检身份，`diagnostics.false_positives` 包含原预测的秩、图、身份和原因。夜班领取直接读取已发布数据。
 
 未知清册、修订、任务或报告号报 `KeyError`。无效清册、行、框、分数、门槛或任务组合报 `ValueError`，相关记录整次拒绝。SQLite 写入或提交失败会传播异常并回滚此次写入。
+
+### 最低分同分组平均 AP
+
+`issue_tie_mean(db, task_id)` 与 `read_tie_mean(db, report_id)` 提供 `TIE_MEAN.md` 的口径。签发返回正整数报告号，读取返回含 `report_id`、`task_id`、`metric`（`tie_mean_ap`）和精确 `Fraction` 类型的 `ap` 的快照。任务号、口径和均值在同一事务内保存；未知任务号或本口径报告号报 `KeyError`，覆盖 32 张清册图或每图 4 个最低分组框时拒发并报 `ValueError`。原 `issue_report` / `read_report`、旧库报告和全部原回归保持不变。
 
 ## 计算口径
 
